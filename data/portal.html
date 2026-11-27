@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WiFi access</title><link rel="stylesheet" href="/assets/app.css">
+<main class="auth-wrap"><section class="card auth-card"><h1 id="title">WiFi access</h1>
+<p id="message"></p><form id="access" hidden><label id="codeLabel" hidden>Access code
+<input id="code" type="password" maxlength="64"></label>
+<button class="btn primary block">Connect</button></form>
+<p id="status" role="status"></p></section></main>
+<script>
+const form = document.querySelector('#access'), statusText = document.querySelector('#status');
+async function load() {
+  const response = await fetch('/api/portal/info');
+  const info = await response.json();
+  document.querySelector('#title').textContent = info.title;
+  document.querySelector('#message').textContent = info.message;
+  document.querySelector('#codeLabel').hidden = info.mode !== 'code';
+  form.hidden = !info.enabled || info.authorized;
+  statusText.textContent = info.authorized ? 'Internet access granted.' : (!info.enabled ? 'Portal is off.' : '');
+}
+form.onsubmit = async event => {
+  event.preventDefault();
+  form.querySelector('button').disabled = true;
+  try {
+    const response = await fetch('/api/portal/authorize', {method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({code:document.querySelector('#code').value})});
+    const result = await response.json();
+    if (!result.authorized) throw Error(result.error || 'Access denied.');
+    await load();
+  } catch (e) { statusText.textContent = e.message; }
+  finally { form.querySelector('button').disabled = false; }
+};
+load().catch(() => { statusText.textContent = 'Router unavailable. Reload to retry.'; });
+</script></html>
